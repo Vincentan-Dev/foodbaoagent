@@ -1,0 +1,23 @@
+{
+  "name": "FoodBao Order App",
+  "short_name": "FoodBao",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00897b",
+  "description": "Food ordering and management application",
+  "icons": [
+    {
+      "src": "img/FBLogo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "img/FBLogo-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

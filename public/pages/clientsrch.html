@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Search - FoodBao Admin</title>
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            height: 100%;
+            font-size: 14px;
+        }
+        
+        /* Fixed top nav positioning */
+        body {
+            padding-top: 56px; /* Reduced from 64px */
+            background-color: #f5f5f5;
+        }
+        
+        /* Background styling */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: url('../img/hawkerbg.jpg') no-repeat center center;
+            background-size: cover;
+            opacity: 0.45;
+            filter: brightness(1.05) saturate(1.2) contrast(1.05);
+        }
+        
+        /* Ensure navbar is at top level */
+        .navbar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+        }
+        
+        /* Make sure the sidenav has higher z-index than the fixed navbar */
+        .sidenav {
+            z-index: 1000;
+        }
+        
+        /* Full-width container with no padding */
+        .full-width-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Card styling - more compact with no margins */
+        .card-panel {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 0;
+            padding: 10px;
+            margin: 0;
+            border: none;
+            box-shadow: 0 2px 6px 0 rgba(31, 38, 135, 0.1);
+        }
+        
+        /* Content section - more compact with no margins */
+        #app-content {
+            background-color: rgba(255, 255, 255, 0.75);
+            padding: 0;
+            border-radius: 0;
+            margin: 0;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: none;
+        }
+        
+        /* Compact header */
+        #app-content h5 {
+            font-size: 1.2rem;
+            margin: 5px 10px;
+            padding: 0;
+        }
+        
+        /* Simplified search field - full width */
+        .search-field {
+            width: 100%;
+            margin: 0;
+            padding: 0 10px;
+        }
+        
+        .input-field {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+        
+        /* Card-based client list with no spacing */
+        .client-cards-container {
+            padding: 0;
+        }
+        
+        /* Full width cards with minimal spacing */
+        .client-card {
+            position: relative;
+            background: white;
+            width: 100%;
+            border-radius: 0;
+            padding: 12px 15px;
+            margin: 2px 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .client-card:active {
+            background-color: #f5f5f5;
+        }
+        
+        .client-card-content {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 15px;
+        }
+        
+        .client-card-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background-color: rgba(0, 150, 136, 0.15);
+            color: #00796b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 500;
+        }
+        
+        .client-card-details {
+            overflow: hidden;
+            padding-right: 20px; /* Space for delete icon */
+        }
+        
+        .client-card-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0 0 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #333;
+        }
+        
+        .client-card-subtitle {
+            font-size: 13px;
+            color: #666;
+            margin: 0 0 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .client-id-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 150, 136, 0.1);
+            color: #00796b;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        
+        /* Delete button positioned at bottom right */
+        .delete-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+            min-width: 30px;
+            padding: 0;
+            background-color: transparent;
+            color: #f44336;
+            box-shadow: none;
+        }
+        
+        .delete-btn:hover, .delete-btn:focus {
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+        
+        .delete-btn i {
+            font-size: 20px;
+            line-height: 30px;
+        }
+        
+        /* Loading indicator - smaller */
+        .loader-container {
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #009688;
+            width: 24px;
+            height: 24px;
+            animation: spin 1.5s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Footer text */
+        .count-display {
+            font-size: 11px;
+            margin: 8px 10px;
+            text-align: right;
+            color: #666;
+        }
+        
+        /* Empty and error states - more compact */
+        .empty-state, .error-state {
+            padding: 20px 15px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .empty-state i, .error-state i {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state h5, .error-state h5 {
+            font-size: 16px;
+            margin: 0 0 8px;
+        }
+        
+        /* Floating Action Button (FAB) for adding new client */
+        .fab-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 998;
+        }
+        
+        .btn-floating.btn-large {
+            width: 56px;
+            height: 56px;
+        }
+        
+        .btn-floating.btn-large i {
+            line-height: 56px;
+            font-size: 24px;
+        }
+    </style>
+    <style>
+        /* Remove top spacing in client management header */
+        .section-header {
+            margin-top: 0;
+            padding-top: 0;
+        }
+        
+        /* If the issue is with the first card or container */
+        #app-content {
+            padding-top: 0;
+        }
+        
+        /* If header component adds spacing */
+        app-header + .container,
+        app-header + .full-width-container,
+        app-header + main {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        /* Full-width container with no padding */
+        .full-width-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+    </style>
+    <style>
+        /* Additional spacing fixes */
+        body {
+            padding-top: 56px; /* Keep this exactly matching navbar height */
+        }
+        
+        main.full-width-container {
+            margin-top: -20px !important;
+            padding-top: 0 !important;
+        }
+        
+        app-header {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        
+        h5.teal-text {
+            padding-top: 10px;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+    </style>
+    <style>
+        /* Add these styles for the credit balance indicator */
+        .credit-balance-indicator {
+            position: absolute;
+            bottom: 8px;
+            right: 45px; /* Position to the left of the delete button */
+            display: flex;
+            align-items: center;
+            background-color: rgba(0, 150, 136, 0.1);
+            border-radius: 12px;
+            padding: 2px 7px;
+            cursor: pointer;
+        }
+        
+        .credit-balance-indicator:hover {
+            background-color: rgba(0, 150, 136, 0.2);
+        }
+        
+        .credit-balance-indicator i {
+            color: #00796b;
+            font-size: 14px;
+            margin-right: 3px;
+        }
+        
+        .credit-balance-text {
+            font-size: 10px;
+            font-weight: 500;
+            color: #00796b;
+        }
+    </style>
+    <style>
+        /* Sticky search container */
+        .search-container {
+            position: sticky;
+            top: 56px; /* Match the navbar height */
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Make client cards container scrollable */
+        .client-cards-container {
+            max-height: calc(100vh - 175px); /* Viewport height minus navbar, title, and search area */
+            overflow-y: auto;
+            padding-bottom: 70px; /* Space for FAB button */
+        }
+        
+        /* Improve scrolling experience */
+        .client-cards-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .client-cards-container::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        .client-cards-container::-webkit-scrollbar-thumb {
+            background: rgba(0, 150, 136, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Check authentication
+        (function checkAuthentication() {
+            const authToken = localStorage.getItem('auth_token');
+            const username = localStorage.getItem('username');
+            
+            if (!authToken || !username) {
+                console.log('Not authenticated, redirecting to login page');
+                window.location.href = '../login.html';
+            }
+        })();
+    </script>
+
+    <!-- Header Component -->
+    <app-header></app-header>
+
+    <!-- Main Content -->
+    <main class="full-width-container" style="margin-top: -20px !important;">
+        <section id="app-content">
+            <div style="display: flex; align-items: center; justify-content: center; padding-top: 10px;">
+                <a href="../index.html" class="btn-flat waves-effect waves-light" style="padding: 0; margin-right: 10px;">
+                    <i class="material-icons">arrow_back</i>
+                </a>
+                <h5 class="center-align teal-text" style="margin: 0;">Client Management</h5>
+            </div>
+            
+            <!-- Simplified Search section - just the input field -->
+            <div class="card-panel">
+                <div class="search-field input-field">
+                    <i class="material-icons prefix">search</i>
+                    <input type="text" id="search-input" placeholder="Search clients...">
+                </div>
+            </div>
+            
+            <!-- Card-based client list -->
+            <div id="client-cards-container" class="client-cards-container">
+                <!-- Loading state shown initially -->
+                <div class="loader-container">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Floating Action Button (FAB) for adding new client -->
+    <div class="fab-container">
+        <a href="newclient.html" class="btn-floating btn-large waves-effect waves-light teal tooltipped" 
+           data-position="left" data-tooltip="Add New Client">
+            <i class="material-icons">add</i>
+        </a>
+    </div>
+
+    <!-- Footer Component -->
+    <app-footer></app-footer>
+
+    <!-- Load Materialize JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    
+    <!-- Load Components -->
+    <script src="../js/components/header.js"></script>
+    <script src="../js/components/footer.js"></script>
+    
+    <!-- Load Services -->
+    <script src="../js/services/authService.js"></script>
+    
+    <!-- Client Search Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Materialize components
+            if (typeof M !== 'undefined') {
+                const tooltipElems = document.querySelectorAll('.tooltipped');
+                if (tooltipElems.length) M.Tooltip.init(tooltipElems);
+                
+                // Initialize sidenav
+                var elems = document.querySelectorAll('.sidenav');
+                if (elems.length) M.Sidenav.init(elems);
+            }
+            
+            // DOM Elements
+            const searchInput = document.getElementById('search-input');
+            const clientCardsContainer = document.getElementById('client-cards-container');
+            
+            // Current search state
+            let currentSearchTerm = '';
+            
+            // Function to fetch client data using authService
+            async function fetchClients(searchTerm = '') {
+                try {
+                    // Show loading state
+                    clientCardsContainer.innerHTML = `
+                        <div class="loader-container">
+                            <div class="loader"></div>
+                        </div>
+                    `;
+                    
+                    // Get auth token from authService or localStorage
+                    let token;
+                    if (typeof authService !== 'undefined' && authService.getToken) {
+                        token = await authService.getToken();
+                    } else {
+                        token = localStorage.getItem('auth_token');
+                    }
+                    
+                    if (!token) {
+                        throw new Error('Authentication token not found');
+                    }
+                    
+                    // Build the API URL with search parameter if provided
+                    let apiUrl = 'https://g4466c5562a773d-maindb.adb.ap-singapore-1.oraclecloudapps.com/ords/admin/api/clients/';
+                    if (searchTerm) {
+                        // Add search term to URL
+                        apiUrl += `?q=${encodeURIComponent(searchTerm)}`;
+                    }
+                    
+                    // Fetch client data from API
+                    const response = await fetch(apiUrl, {
+                        method: 'GET',
+                        headers: {
+                            'X-Auth-Token': token,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        // If token expired, try to refresh it with authService
+                        if (response.status === 401 && typeof authService !== 'undefined' && authService.refreshToken) {
+                            console.log('Token expired, attempting to refresh...');
+                            const refreshed = await authService.refreshToken();
+                            if (refreshed) {
+                                // Retry with new token
+                                return fetchClients(searchTerm);
+                            }
+                        }
+                        throw new Error(`API error: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    displayClientCards(data);
+                    
+                } catch (error) {
+                    console.error('Error fetching client data:', error);
+                    displayError(error.message);
+                }
+            }
+            
+            // Function to display client data as cards
+            function displayClientCards(data) {
+                if (!data || !data.items || data.items.length === 0) {
+                    displayEmptyState();
+                    return;
+                }
+                
+                // Build HTML for all client cards
+                const cardsHTML = data.items.map(client => {
+                    // Get initials for avatar
+                    const initials = (client.username || 'User').charAt(0).toUpperCase();
+                    
+                    return `
+                        <a href="client-info.html?id=${client.client_id}" class="card-link">
+                            <div class="client-card" data-id="${client.client_id}">
+                                <div class="client-card-content">
+                                    <div class="client-card-avatar">${initials}</div>
+                                    <div class="client-card-details">
+                                        <h3 class="client-card-title">${client.username || 'Unknown Client'}</h3>
+                                        <p class="client-card-subtitle">${client.businessname || 'No Business Name'}</p>
+                                        <p class="client-card-subtitle">${client.businesschn ? client.businesschn + ' • ' : ''}${client.country || 'No Country'}</p>
+                                    </div>
+                                </div>
+                                <span class="client-id-badge">ID: ${client.client_id}</span>
+                                
+                                <!-- Credit balance indicator -->
+                                <a href="client-credits.html?id=${client.client_id}" class="credit-balance-indicator tooltipped" 
+                                   data-position="top" data-tooltip="Credit Balance" onclick="event.stopPropagation();">
+                                    <i class="material-icons">account_balance_wallet</i>
+                                    <span class="credit-balance-text">${client.credit_balance || '0'}</span>
+                                </a>
+                                
+                                <!-- Delete button at bottom right -->
+                                <button class="btn-flat waves-effect waves-light delete-btn tooltipped" 
+                                    data-position="left" data-tooltip="Delete">
+                                    <i class="material-icons">delete</i>
+                                </button>
+                            </div>
+                        </a>
+                    `;
+                }).join('');
+                
+                // Show cards and count
+                clientCardsContainer.innerHTML = `
+                    ${cardsHTML}
+                    <p class="count-display">
+                        Total clients: ${data.count}
+                    </p>
+                `;
+                
+                // Re-initialize tooltips for new elements
+                if (typeof M !== 'undefined') {
+                    const tooltipElems = document.querySelectorAll('.tooltipped');
+                    if (tooltipElems.length) M.Tooltip.init(tooltipElems);
+                }
+                
+                // Add event listeners to cards
+                initCardEvents();
+            }
+            
+            // Initialize card events
+            function initCardEvents() {
+                const cards = document.querySelectorAll('.client-card');
+                
+                cards.forEach(card => {
+                    // Basic card click event for viewing client
+                    card.addEventListener('click', function(e) {
+                        // Don't trigger if clicking delete button
+                        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                            return;
+                        }
+                        
+                        const clientId = this.dataset.id;
+                        viewClient(clientId);
+                    });
+                    
+                    // Delete button click
+                    const deleteBtn = card.querySelector('.delete-btn');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const clientId = card.dataset.id;
+                            deleteClient(clientId);
+                        });
+                    }
+                });
+
+                // Credit balance click handling
+                const creditIndicators = document.querySelectorAll('.credit-balance-indicator');
+                creditIndicators.forEach(indicator => {
+                    indicator.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const clientId = this.closest('.client-card').dataset.id;
+                        window.location.href = `client-credits.html?id=${clientId}`;
+                    });
+                });
+            }
+            
+            // Function to display empty state
+            function displayEmptyState() {
+                clientCardsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="material-icons">search_off</i>
+                        <h5>No clients found</h5>
+                        <p>Try adjusting your search criteria</p>
+                    </div>
+                `;
+            }
+            
+            // Function to display error state
+            function displayError(message) {
+                clientCardsContainer.innerHTML = `
+                    <div class="error-state">
+                        <i class="material-icons">error_outline</i>
+                        <h5>Error loading data</h5>
+                        <p>${message || 'Could not retrieve client data'}</p>
+                        <button class="btn red lighten-1 waves-effect waves-light btn-small" id="retry-btn">
+                            <i class="material-icons left">refresh</i>Try Again
+                        </button>
+                    </div>
+                `;
+                
+                // Add event listener for retry button
+                document.getElementById('retry-btn')?.addEventListener('click', function() {
+                    fetchClients(currentSearchTerm);
+                });
+            }
+            
+            // Function to handle client view - go to client-info.html
+            function viewClient(clientId) {
+                console.log('View client:', clientId);
+                window.location.href = `client-info.html?id=${clientId}`;
+            }
+            
+            // Function to handle client deletion
+            function deleteClient(clientId) {
+                console.log('Delete client:', clientId);
+                
+                // Show confirmation dialog
+                if (confirm(`Are you sure you want to delete client #${clientId}?`)) {
+                    M.toast({html: `Deleting client #${clientId}...`, classes: 'rounded'});
+                    
+                    // Get auth token
+                    let token = localStorage.getItem('auth_token');
+                    if (!token) {
+                        M.toast({html: 'Authentication token not found', classes: 'rounded red'});
+                        return;
+                    }
+                    
+                    // Create the API URL for deletion
+                    let apiUrl = `https://g4466c5562a773d-maindb.adb.ap-singapore-1.oraclecloudapps.com/ords/admin/api/clients/${clientId}`;
+                    
+                    // Make the DELETE request to the API
+                    fetch(apiUrl, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-Auth-Token': token,
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            M.toast({html: `Client #${clientId} deleted successfully`, classes: 'rounded green'});
+                            // Refresh the client list
+                            fetchClients(currentSearchTerm);
+                        } else {
+                            throw new Error(`Failed to delete client: ${response.status}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting client:', error);
+                        M.toast({html: `Error: ${error.message}`, classes: 'rounded red'});
+                    });
+                }
+            }
+            
+            // Event listener for search input
+            searchInput.addEventListener('keyup', function(e) {
+                // If Enter key or after typing stops for a short period
+                if (e.key === 'Enter') {
+                    currentSearchTerm = searchInput.value.trim();
+                    fetchClients(currentSearchTerm);
+                }
+            });
+            
+            // Debounced search - search after user stops typing
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    currentSearchTerm = searchInput.value.trim();
+                    fetchClients(currentSearchTerm);
+                }, 500); // Wait 500ms after user stops typing
+            });
+            
+            // Initialize tooltip for the FAB
+            const fabTooltip = document.querySelectorAll('.tooltipped');
+            if (fabTooltip.length && typeof M !== 'undefined') {
+                M.Tooltip.init(fabTooltip);
+            }
+            
+            // Initial load of client data
+            fetchClients();
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cardLinks = document.querySelectorAll('.card-link');
+            cardLinks.forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    window.location.href = 'client-info.html';
+                });
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Materialize components
+            if (typeof M !== 'undefined') {
+                // Initialize sidenav
+                const sidenavElems = document.querySelectorAll('.sidenav');
+                if (sidenavElems.length) M.Sidenav.init(sidenavElems);
+                
+                // Initialize tooltips
+                const tooltipElems = document.querySelectorAll('.tooltipped');
+                if (tooltipElems.length) M.Tooltip.init(tooltipElems);
+            }
+            
+            // Ensure header displays logo correctly
+            setTimeout(function() {
+                const logoImgs = document.querySelectorAll('.brand-logo img');
+                logoImgs.forEach(img => {
+                    // Force image to be visible
+                    img.style.display = 'block';
+                    img.style.visibility = 'visible';
+                    img.style.opacity = '1';
+                });
+            }, 100);
+        });
+    </script>
+    <script>
+        // In your working clientsrch.html - add this temporarily to see the request details
+        function searchClients() {
+            const searchTerm = document.getElementById('search-input').value;
+            console.log('Search request details:');
+            
+            // Log all request details
+            const token = localStorage.getItem('auth_token');
+            console.log('Using token:', token && token.substring(0, 10) + '...');
+            console.log('Headers:', {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': token
+            });
+            
+            // Continue with your existing search code...
+        }
+    </script>
+    <script>
+        function loadClientData(clientId) {
+            // Show loading overlay
+            document.getElementById('loading-overlay').classList.add('active');
+            
+            // API endpoint with client ID
+            const apiUrl = `https://g4466c5562a773d-maindb.adb.ap-singapore-1.oraclecloudapps.com/ords/admin/api/clients/${clientId}`;
+            
+            // Use the shared authenticatedFetch method
+            authService.authenticatedFetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Client data loaded successfully:', data);
+                    // Process your client data here
+                    
+                    // Hide loading overlay
+                    document.getElementById('loading-overlay').classList.remove('active');
+                })
+                .catch(error => {
+                    console.error('Error loading client data:', error);
+                    document.getElementById('loading-overlay').classList.remove('active');
+                    M.toast({html: 'Error loading client information', classes: 'red'});
+                });
+        }
+    </script>
+</body>
+</html>

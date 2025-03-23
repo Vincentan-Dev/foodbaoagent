@@ -1,0 +1,21 @@
+{
+  "name": "foodbaoadmin",
+  "version": "1.0.0",
+  "description": "FoodBao Admin Dashboard with Supabase",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site, no build step required'",
+    "start": "serve public"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.21.0",
+    "jsonwebtoken": "^9.0.0",
+    "@vercel/node": "^2.15.1"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  },
+  "author": "Vincentan-Dev",
+  "license": "MIT"
+}

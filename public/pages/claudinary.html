@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudinary Settings - FoodBao Admin</title>
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="../src/css/materialize.min.css">
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        /* Form styling */
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 0;
+        }
+        
+        .form-col {
+            padding: 0 10px;
+        }
+        
+        .form-col.s12 {
+            width: 100%;
+        }
+        
+        .form-col.s6 {
+            width: 50%;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .form-col.s6 {
+                width: 100%;
+            }
+        }
+        
+        /* Card and header styling */
+        .client-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .back-btn {
+            cursor: pointer;
+            margin-right: 15px;
+        }
+        
+        .client-title {
+            flex-grow: 1;
+        }
+        
+        .client-title h5 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .client-title p {
+            margin: 0;
+            color: #757575;
+        }
+        
+        /* Tab content styling */
+        .tab-content {
+            margin-top: 20px;
+        }
+        
+        /* Loading overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading-overlay.active {
+            display: flex;
+        }
+        
+        /* Secret field styling */
+        .secret-field-container {
+            position: relative;
+        }
+        
+        .toggle-visibility {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #9e9e9e;
+        }
+
+        /* Add these styles to make the header stick */
+        body {
+            padding-top: 64px !important; /* Match navbar height */
+        }
+        
+        @media only screen and (max-width: 600px) {
+            body {
+                padding-top: 56px !important; /* Mobile navbar height */
+            }
+        }
+        
+        /* Ensure app-header renders properly */
+        app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 999;
+        }
+        
+        /* Make sure navbar is fixed */
+        .navbar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+        }
+        
+        /* Make app-content start below the header */
+        main.full-width-container {
+            padding-top: 10px;
+        }
+
+        /* Footer styling */
+        app-footer {
+            margin-top: 40px;
+            display: block;
+        }
+
+        /* Make sure the footer stays at the bottom even with little content */
+        body {
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Load required libraries first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+    <!-- Load Components -->
+    <script src="../js/components/header.js"></script>
+    <script src="../js/components/footer.js"></script>
+
+    <!-- Load Services - IMPORTANT: This must be loaded before using authService -->
+    <script src="../js/services/authService.js"></script>
+    <script src="../js/services/corsHelper.js"></script>
+
+    <!-- ONLY NOW run the authentication check -->
+    <script>
+        // Check authentication
+        (function checkAuthentication() {
+            if (!authService || !authService.isAuthenticated()) {
+                console.log('Not authenticated, redirecting to login page');
+                window.location.href = '../login.html';
+            } else {
+                console.log('Authentication verified');
+            }
+        })();
+    </script>
+
+    <!-- Your page-specific scripts can go here -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Cloudinary page loaded');
+            
+            // Initialize Materialize components
+            if (typeof M !== 'undefined') {
+                M.updateTextFields();
+            } else {
+                console.error('Materialize JS not loaded properly');
+            }
+            
+            // Initialize edit mode toggle
+            const editModeCheckbox = document.getElementById('edit-mode');
+            const saveBtn = document.getElementById('save-btn');
+            
+            if (editModeCheckbox) {
+                editModeCheckbox.addEventListener('change', function() {
+                    toggleEditMode(this.checked);
+                    
+                    // Show/hide save button based on edit mode
+                    if (this.checked) {
+                        saveBtn.style.display = 'block';
+                    } else {
+                        saveBtn.style.display = 'none';
+                    }
+                });
+            }
+            
+            // Add save button functionality
+            if (saveBtn) {
+                saveBtn.addEventListener('click', function() {
+                    saveCloudinaryAccount();
+                });
+            }
+            
+            // Get user info from localStorage using our new helper
+            const currentUser = authService.getCurrentUser();
+            
+            // Set hidden fields
+            document.getElementById('user-id').value = currentUser.userId;
+            document.getElementById('username').value = currentUser.username;
+            
+            // Load Cloudinary account data
+            loadCloudinaryAccount();
+        });
+        
+        function toggleEditMode(isEdit) {
+            const inputs = document.querySelectorAll('input:not([type="hidden"])');
+            inputs.forEach(function(input) {
+                input.readOnly = !isEdit;
+            });
+        }
+        
+        function togglePasswordVisibility(fieldId) {
+            const field = document.getElementById(fieldId);
+            const icon = field.parentElement.querySelector('.toggle-visibility');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.textContent = 'visibility';
+            } else {
+                field.type = 'password';
+                icon.textContent = 'visibility_off';
+            }
+        }
+        
+        function loadCloudinaryAccount() {
+            // Show loading overlay
+            document.getElementById('loading-overlay').classList.add('active');
+            
+            // Get current user's username
+            const currentUser = authService.getCurrentUser();
+            const username = currentUser.username;
+            
+            // Get auth token
+            const token = localStorage.getItem('auth_token');
+            
+            if (!token) {
+                console.error('Authentication token not found');
+                M.toast({html: 'Authentication error. Please login again.', classes: 'red'});
+                document.getElementById('loading-overlay').classList.remove('active');
+                return;
+            }
+            
+            // Use the same API pattern that works in clientsrch.html
+            // Note: You might need to create this API endpoint if it doesn't exist
+            const apiUrl = `https://g4466c5562a773d-maindb.adb.ap-singapore-1.oraclecloudapps.com/ords/admin/api/cloudinaryacc/?username=${encodeURIComponent(username)}`;
+            
+            // Make the API call with X-Auth-Token like clientsrch.html does
+            fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'X-Auth-Token': token,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                console.log(`Debug - Response status: ${response.status}, OK: ${response.ok}`);
+                console.log(`Debug - Response headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error(`Debug - Error response body: ${text}`);
+                        
+                        // Categorize errors
+                        if (response.status === 401 || response.status === 403) {
+                            console.error('Debug - Authentication/Authorization error');
+                            throw new Error(`AUTH_ERROR: ${response.status}`);
+                        } else if (response.status === 404) {
+                            console.error('Debug - Resource not found');
+                            throw new Error(`NOT_FOUND: ${response.status}`);
+                        } else {
+                            console.error(`Debug - API error: ${response.status}`);
+                            throw new Error(`API_ERROR: ${response.status}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(`Debug - Response data received: ${JSON.stringify(data).substring(0, 200)}...`);
+                
+                // Check if we have items
+                if (!data.items || data.items.length === 0) {
+                    console.log('Debug - No items found in response');
+                    throw new Error('DATA_ERROR: No items found');
+                }
+                
+                // Extract the first item from the items array
+                const cloudinaryData = data.items[0];
+                console.log(`Debug - First item: ${JSON.stringify(cloudinaryData)}`);
+                
+                // Check if we have expected fields
+                const requiredFields = ['cloud_name', 'api_key', 'api_secret', 'upload_preset'];
+                const missingFields = requiredFields.filter(field => !cloudinaryData[field]);
+                
+                if (missingFields.length > 0) {
+                    console.warn(`Debug - Missing fields in response: ${missingFields.join(', ')}`);
+                }
+                
+                try {
+                    // Populate form fields with data
+                    document.getElementById('cloudinary-id').value = cloudinaryData.cloudinary_id || '';
+                    document.getElementById('cloud-name').value = cloudinaryData.cloud_name || '';
+                    document.getElementById('api-key').value = cloudinaryData.api_key || '';
+                    document.getElementById('api-secret').value = cloudinaryData.api_secret || '';
+                    document.getElementById('upload-preset').value = cloudinaryData.upload_preset || '';
+                    document.getElementById('user-id').value = cloudinaryData.userid || currentUser.userId;
+                    document.getElementById('username').value = cloudinaryData.username || currentUser.username;
+                    
+                    console.log('Debug - Form populated successfully');
+                    
+                    // Update Materialize labels
+                    M.updateTextFields();
+                    
+                    // Hide loading overlay
+                    document.getElementById('loading-overlay').classList.remove('active');
+                    
+                    // Show success message if data was found
+                    M.toast({html: 'Cloudinary settings loaded', classes: 'green'});
+                } catch (error) {
+                    console.error(`Debug - DOM manipulation error: ${error.message}`);
+                    throw new Error(`PAGE_ERROR: ${error.message}`);
+                }
+            })
+            .catch(error => {
+                console.error(`Debug - Error in promise chain: ${error.message}`);
+                document.getElementById('loading-overlay').classList.remove('active');
+                
+                // Categorize errors based on error message prefix
+                if (error.message.includes('AUTH_ERROR')) {
+                    console.error('Debug - Authentication error detected');
+                    M.toast({html: 'Authentication failed. Please login again.', classes: 'red'});
+                    setTimeout(() => {
+                        window.location.href = window.location.pathname.includes('/pages/') ? 
+                            '../login.html' : 'login.html';
+                    }, 2000);
+                } else if (error.message.includes('DATA_ERROR')) {
+                    console.error('Debug - Data error detected');
+                    M.toast({html: 'No Cloudinary settings found. Please enter your credentials.', classes: 'blue'});
+                } else if (error.message.includes('PAGE_ERROR')) {
+                    console.error('Debug - Page rendering error detected');
+                    M.toast({html: 'Error displaying Cloudinary settings. Please refresh page.', classes: 'red'});
+                } else if (error.message.includes('CORS')) {
+                    console.error('Debug - CORS error detected');
+                    // Show CORS helper
+                    if (typeof corsHelper !== 'undefined') {
+                        corsHelper.showCorsHelp();
+                    } else {
+                        M.toast({html: 'Please install a CORS-unblocking browser extension', classes: 'red'});
+                    }
+                } else {
+                    console.error('Debug - General error detected');
+                    M.toast({html: 'Error loading Cloudinary settings', classes: 'red'});
+                }
+            });
+        }
+        
+        function saveCloudinaryAccount() {
+            // Validate form
+            const form = document.getElementById('cloudinary-form');
+            const requiredFields = form.querySelectorAll('[required]');
+            
+            let isValid = true;
+            requiredFields.forEach(field => {
+                if (!field.value) {
+                    isValid = false;
+                    field.classList.add('invalid');
+                } else {
+                    field.classList.remove('invalid');
+                }
+            });
+            
+            if (!isValid) {
+                M.toast({html: 'Please fill in all required fields', classes: 'red'});
+                return;
+            }
+            
+            // Show loading overlay
+            document.getElementById('loading-overlay').classList.add('active');
+            
+            // Gather form data - make sure field names match the API expectations
+            // For POST/PUT method, Oracle REST expects this format
+            const formData = {
+                "userid": document.getElementById('user-id').value,
+                "username": document.getElementById('username').value, 
+                "cloud_name": document.getElementById('cloud-name').value,
+                "api_key": document.getElementById('api-key').value,
+                "api_secret": document.getElementById('api-secret').value,
+                "upload_preset": document.getElementById('upload-preset').value
+            };
+            
+            // Check if we're in development or production
+            const isDevelopment = window.location.hostname === '127.0.0.1' || 
+                                  window.location.hostname === 'localhost';
+            
+            // Use PUT method or POST based on whether we have an ID
+            const method = formData.cloudinary_id ? 'PUT' : 'POST';
+            
+            // Get current user's token
+            const currentUser = authService.getCurrentUser();
+            
+            if (isDevelopment) {
+                // In development: Direct API call
+                const apiUrl = 'https://g4466c5562a773d-maindb.adb.ap-singapore-1.oraclecloudapps.com/ords/admin/cloudinaryacc/';
+                
+                authService.authenticatedFetch(apiUrl, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(handleResponse)
+                .then(handleData)
+                .catch(handleError);
+            } else {
+                // In production: Use Vercel proxy
+                const apiPath = 'cloudinaryacc/';
+                const url = `/api/proxy?path=${encodeURIComponent(apiPath)}`;
+                
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Auth-Token': currentUser.token
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(handleResponse)
+                .then(handleData)
+                .catch(handleError);
+            }
+            
+            // Shared response handler
+            function handleResponse(response) {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error('Error response body:', text);
+                        throw new Error(`API error: ${response.status}`);
+                    });
+                }
+                return response.json();
+            }
+            
+            // Shared success handler
+            function handleData(data) {
+                // Update the ID if returned
+                if (data.cloudinary_id) {
+                    document.getElementById('cloudinary-id').value = data.cloudinary_id;
+                }
+                
+                // Hide loading overlay
+                document.getElementById('loading-overlay').classList.remove('active');
+                
+                // Show success message
+                M.toast({html: 'Cloudinary account saved successfully', classes: 'green'});
+                
+                // Turn off edit mode
+                document.getElementById('edit-mode').checked = false;
+                toggleEditMode(false);
+                document.getElementById('save-btn').style.display = 'none';
+            }
+            
+            // Shared error handler
+            function handleError(error) {
+                console.error('Error saving Cloudinary data:', error);
+                document.getElementById('loading-overlay').classList.remove('active');
+                M.toast({html: 'Error saving Cloudinary account information', classes: 'red'});
+            }
+        }
+
+        // Add this to both pages to compare the exact request parameters
+        function logApiDetails() {
+            const url = window.location.pathname.split('/').pop();
+            console.log(`Debug - Page ${url} request details:`);
+            console.log(`Debug - Base URL: ${baseUrl}`);
+            console.log(`Debug - Headers: ${JSON.stringify(headers)}`);
+            console.log(`Debug - Query format: ${JSON.stringify(queryObject)}`);
+        }
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Materialize components
+        if (typeof M !== 'undefined') {
+            // Initialize sidenav
+            const sidenavElems = document.querySelectorAll('.sidenav');
+            if (sidenavElems.length) M.Sidenav.init(sidenavElems);
+            
+            // Initialize tooltips
+            const tooltipElems = document.querySelectorAll('.tooltipped');
+            if (tooltipElems.length) M.Tooltip.init(tooltipElems);
+        }
+        
+        // Ensure header displays logo correctly
+        setTimeout(function() {
+            const logoImgs = document.querySelectorAll('.brand-logo img');
+            logoImgs.forEach(img => {
+                // Force image to be visible
+                img.style.display = 'block';
+                img.style.visibility = 'visible';
+                img.style.opacity = '1';
+            });
+        }, 100);
+    });
+</script>
+
+<app-header></app-header>
+
+<main class="full-width-container">
+    <div class="container">
+        <div class="client-header">
+            <a href="../index.html" class="back-btn tooltipped" data-position="bottom" data-tooltip="Back to Dashboard">
+                <i class="material-icons">arrow_back</i>
+            </a>
+            <div class="client-title">
+                <h5>Cloudinary Settings</h5>
+                <p>Configure your Cloudinary account information</p>
+            </div>
+            <div class="switch right-align">
+                <label>
+                    <span class="grey-text">Edit</span>
+                    <input type="checkbox" id="edit-mode">
+                    <span class="lever"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <form id="cloudinary-form">
+                            <!-- Hidden fields -->
+                            <input type="hidden" id="cloudinary-id">
+                            <input type="hidden" id="user-id">
+                            <input type="hidden" id="username">
+
+                            <!-- Form content -->
+                            <div class="form-row">
+                                <div class="form-col s6">
+                                    <div class="input-field">
+                                        <input id="cloud-name" type="text" class="validate" required readonly>
+                                        <label for="cloud-name">Cloud Name</label>
+                                    </div>
+                                </div>
+                                <div class="form-col s6">
+                                    <div class="input-field">
+                                        <input id="upload-preset" type="text" class="validate" required readonly>
+                                        <label for="upload-preset">Upload Preset</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-col s6">
+                                    <div class="input-field">
+                                        <input id="api-key" type="text" class="validate" required readonly>
+                                        <label for="api-key">API Key</label>
+                                    </div>
+                                </div>
+                                <div class="form-col s6">
+                                    <div class="input-field secret-field-container">
+                                        <input id="api-secret" type="password" class="validate" required readonly>
+                                        <label for="api-secret">API Secret</label>
+                                        <i class="material-icons toggle-visibility" onclick="togglePasswordVisibility('api-secret')">visibility_off</i>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-action">
+                        <button id="save-btn" class="btn waves-effect waves-light blue" style="display: none;">
+                            <i class="material-icons left">save</i> Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Loading overlay -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="preloader-wrapper big active">
+        <div class="spinner-layer spinner-blue-only">
+            <div class="circle-clipper left">
+                <div class="circle"></div>
+            </div><div class="gap-patch">
+                <div class="circle"></div>
+            </div><div class="circle-clipper right">
+                <div class="circle"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<app-footer></app-footer>
+
+<!-- Add this to your claudinary.html page -->
+<div id="debug-panel" style="display: none; position: fixed; bottom: 10px; right: 10px; width: 400px; height: 300px; background-color: rgba(0,0,0,0.8); color: #00ff00; padding: 10px; font-family: monospace; overflow-y: auto; z-index: 9999;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <h5 style="margin: 0; color: white;">Debug Console</h5>
+        <button onclick="document.getElementById('debug-panel').style.display='none'" style="background: none; border: none; color: white; cursor: pointer;">✖</button>
+    </div>
+    <div id="debug-log"></div>
+</div>
+
+<!-- Add this button somewhere on your page -->
+<button id="debug-toggle" class="btn-small blue" style="position: fixed; bottom: 10px; right: 10px; z-index: 9998;" onclick="document.getElementById('debug-panel').style.display='block'">
+    Debug
+</button>
+
+<!-- Add this script -->
+<script>
+    // Override console.log and console.error to also display in debug panel
+    (function() {
+        const originalLog = console.log;
+        const originalError = console.error;
+        const debugLog = document.getElementById('debug-log');
+        
+        console.log = function() {
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].startsWith('Debug')) {
+                const log = Array.from(arguments).join(' ');
+                if (debugLog) {
+                    debugLog.innerHTML += `<div style="color:#00ff00; margin-bottom: 3px; border-bottom: 1px solid #333;">${log}</div>`;
+                    debugLog.scrollTop = debugLog.scrollHeight;
+                }
+            }
+            originalLog.apply(console, arguments);
+        };
+        
+        console.error = function() {
+            if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].startsWith('Debug')) {
+                const log = Array.from(arguments).join(' ');
+                if (debugLog) {
+                    debugLog.innerHTML += `<div style="color:#ff5555; margin-bottom: 3px; border-bottom: 1px solid #333;">${log}</div>`;
+                    debugLog.scrollTop = debugLog.scrollHeight;
+                }
+            }
+            originalError.apply(console, arguments);
+        };
+    })();
+</script>
+</body>
+</html>
