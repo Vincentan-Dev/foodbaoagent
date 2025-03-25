@@ -4,38 +4,30 @@
  */
 const authService = {
   async login(username, password) {
-    try {
-      console.log('Making login request to /api/auth');
-      
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-      });
-      
-      console.log('Login response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
-      }
-      
-      const data = await response.json();
-      
-      // Store auth data in localStorage
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('username', data.user.username);
-      localStorage.setItem('user_id', data.user.id);
-      localStorage.setItem('user_role', data.user.role);
-      localStorage.setItem('user_email', data.user.email);
-      
-      return { success: true, user: data.user };
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+    // Keep only the real authentication flow:
+    const response = await fetch('/api/auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, password })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Login failed');
     }
+    
+    const data = await response.json();
+    
+    // Store auth data in localStorage
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('username', data.user.username);
+    localStorage.setItem('user_id', data.user.id);
+    localStorage.setItem('user_role', data.user.role || data.user.user_role); // Store whatever role field exists
+    localStorage.setItem('user_email', data.user.email);
+    
+    return { success: true, user: data.user };
   },
   
   logout() {
@@ -153,4 +145,5 @@ authService.logout = function() {
     // Otherwise use the original logout function
     originalLogout.call(this);
 };
+
 

@@ -206,13 +206,6 @@
                 });
             }
             
-            // Add save button functionality
-            if (saveBtn) {
-                saveBtn.addEventListener('click', function() {
-                    saveCloudinaryAccount();
-                });
-            }
-            
             // Get user info from localStorage using our new helper
             const currentUser = authService.getCurrentUser();
             
@@ -252,253 +245,24 @@
             const currentUser = authService.getCurrentUser();
             const username = currentUser.username;
             
-            // Get auth token
-            const token = localStorage.getItem('auth_token');
+            console.log('Debug - Delegating loadCloudinaryAccount to cloudinaryService');
             
-            if (!token) {
-                console.error('Authentication token not found');
-                M.toast({html: 'Authentication error. Please login again.', classes: 'red'});
-                document.getElementById('loading-overlay').classList.remove('active');
-                return;
-            }
-            
-            // Use the same API pattern that works in clientsrch.html
-            // Note: You might need to create this API endpoint if it doesn't exist
-            const apiUrl = `https://g4466c5562a773d-maindb.adb.ap-singapore-1.oraclecloudapps.com/ords/admin/api/cloudinaryacc/?username=${encodeURIComponent(username)}`;
-            
-            // Make the API call with X-Auth-Token like clientsrch.html does
-            fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                    'X-Auth-Token': token,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                console.log(`Debug - Response status: ${response.status}, OK: ${response.ok}`);
-                console.log(`Debug - Response headers: ${JSON.stringify([...response.headers.entries()])}`);
-                
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        console.error(`Debug - Error response body: ${text}`);
-                        
-                        // Categorize errors
-                        if (response.status === 401 || response.status === 403) {
-                            console.error('Debug - Authentication/Authorization error');
-                            throw new Error(`AUTH_ERROR: ${response.status}`);
-                        } else if (response.status === 404) {
-                            console.error('Debug - Resource not found');
-                            throw new Error(`NOT_FOUND: ${response.status}`);
-                        } else {
-                            console.error(`Debug - API error: ${response.status}`);
-                            throw new Error(`API_ERROR: ${response.status}`);
-                        }
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log(`Debug - Response data received: ${JSON.stringify(data).substring(0, 200)}...`);
-                
-                // Check if we have items
-                if (!data.items || data.items.length === 0) {
-                    console.log('Debug - No items found in response');
-                    throw new Error('DATA_ERROR: No items found');
-                }
-                
-                // Extract the first item from the items array
-                const cloudinaryData = data.items[0];
-                console.log(`Debug - First item: ${JSON.stringify(cloudinaryData)}`);
-                
-                // Check if we have expected fields
-                const requiredFields = ['cloud_name', 'api_key', 'api_secret', 'upload_preset'];
-                const missingFields = requiredFields.filter(field => !cloudinaryData[field]);
-                
-                if (missingFields.length > 0) {
-                    console.warn(`Debug - Missing fields in response: ${missingFields.join(', ')}`);
-                }
-                
-                try {
-                    // Populate form fields with data
-                    document.getElementById('cloudinary-id').value = cloudinaryData.cloudinary_id || '';
-                    document.getElementById('cloud-name').value = cloudinaryData.cloud_name || '';
-                    document.getElementById('api-key').value = cloudinaryData.api_key || '';
-                    document.getElementById('api-secret').value = cloudinaryData.api_secret || '';
-                    document.getElementById('upload-preset').value = cloudinaryData.upload_preset || '';
-                    document.getElementById('user-id').value = cloudinaryData.userid || currentUser.userId;
-                    document.getElementById('username').value = cloudinaryData.username || currentUser.username;
-                    
-                    console.log('Debug - Form populated successfully');
-                    
-                    // Update Materialize labels
-                    M.updateTextFields();
+            // Use cloudinaryService instead of direct API call
+            cloudinaryService.getAccountByUsername(username)
+                .then(result => {
+                    console.log('Debug - Account data received from cloudinaryService');
                     
                     // Hide loading overlay
                     document.getElementById('loading-overlay').classList.remove('active');
                     
-                    // Show success message if data was found
-                    M.toast({html: 'Cloudinary settings loaded', classes: 'green'});
-                } catch (error) {
-                    console.error(`Debug - DOM manipulation error: ${error.message}`);
-                    throw new Error(`PAGE_ERROR: ${error.message}`);
-                }
-            })
-            .catch(error => {
-                console.error(`Debug - Error in promise chain: ${error.message}`);
-                document.getElementById('loading-overlay').classList.remove('active');
-                
-                // Categorize errors based on error message prefix
-                if (error.message.includes('AUTH_ERROR')) {
-                    console.error('Debug - Authentication error detected');
-                    M.toast({html: 'Authentication failed. Please login again.', classes: 'red'});
-                    setTimeout(() => {
-                        window.location.href = window.location.pathname.includes('/pages/') ? 
-                            '../login.html' : 'login.html';
-                    }, 2000);
-                } else if (error.message.includes('DATA_ERROR')) {
-                    console.error('Debug - Data error detected');
-                    M.toast({html: 'No Cloudinary settings found. Please enter your credentials.', classes: 'blue'});
-                } else if (error.message.includes('PAGE_ERROR')) {
-                    console.error('Debug - Page rendering error detected');
-                    M.toast({html: 'Error displaying Cloudinary settings. Please refresh page.', classes: 'red'});
-                } else if (error.message.includes('CORS')) {
-                    console.error('Debug - CORS error detected');
-                    // Show CORS helper
-                    if (typeof corsHelper !== 'undefined') {
-                        corsHelper.showCorsHelp();
-                    } else {
-                        M.toast({html: 'Please install a CORS-unblocking browser extension', classes: 'red'});
-                    }
-                } else {
-                    console.error('Debug - General error detected');
-                    M.toast({html: 'Error loading Cloudinary settings', classes: 'red'});
-                }
-            });
-        }
-        
-        function saveCloudinaryAccount() {
-            // Validate form
-            const form = document.getElementById('cloudinary-form');
-            const requiredFields = form.querySelectorAll('[required]');
-            
-            let isValid = true;
-            requiredFields.forEach(field => {
-                if (!field.value) {
-                    isValid = false;
-                    field.classList.add('invalid');
-                } else {
-                    field.classList.remove('invalid');
-                }
-            });
-            
-            if (!isValid) {
-                M.toast({html: 'Please fill in all required fields', classes: 'red'});
-                return;
-            }
-            
-            // Show loading overlay
-            document.getElementById('loading-overlay').classList.add('active');
-            
-            // Gather form data - make sure field names match the API expectations
-            // For POST/PUT method, Oracle REST expects this format
-            const formData = {
-                "userid": document.getElementById('user-id').value,
-                "username": document.getElementById('username').value, 
-                "cloud_name": document.getElementById('cloud-name').value,
-                "api_key": document.getElementById('api-key').value,
-                "api_secret": document.getElementById('api-secret').value,
-                "upload_preset": document.getElementById('upload-preset').value
-            };
-            
-            // Check if we're in development or production
-            const isDevelopment = window.location.hostname === '127.0.0.1' || 
-                                  window.location.hostname === 'localhost';
-            
-            // Use PUT method or POST based on whether we have an ID
-            const method = formData.cloudinary_id ? 'PUT' : 'POST';
-            
-            // Get current user's token
-            const currentUser = authService.getCurrentUser();
-            
-            if (isDevelopment) {
-                // In development: Direct API call
-                const apiUrl = 'https://g4466c5562a773d-maindb.adb.ap-singapore-1.oraclecloudapps.com/ords/admin/cloudinaryacc/';
-                
-                authService.authenticatedFetch(apiUrl, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
+                    // The actual data handling is now done in the DOMContentLoaded event 
+                    // handler that uses cloudinaryService
                 })
-                .then(handleResponse)
-                .then(handleData)
-                .catch(handleError);
-            } else {
-                // In production: Use Vercel proxy
-                const apiPath = 'cloudinaryacc/';
-                const url = `/api/proxy?path=${encodeURIComponent(apiPath)}`;
-                
-                fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-Auth-Token': currentUser.token
-                    },
-                    body: JSON.stringify(formData)
-                })
-                .then(handleResponse)
-                .then(handleData)
-                .catch(handleError);
-            }
-            
-            // Shared response handler
-            function handleResponse(response) {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        console.error('Error response body:', text);
-                        throw new Error(`API error: ${response.status}`);
-                    });
-                }
-                return response.json();
-            }
-            
-            // Shared success handler
-            function handleData(data) {
-                // Update the ID if returned
-                if (data.cloudinary_id) {
-                    document.getElementById('cloudinary-id').value = data.cloudinary_id;
-                }
-                
-                // Hide loading overlay
-                document.getElementById('loading-overlay').classList.remove('active');
-                
-                // Show success message
-                M.toast({html: 'Cloudinary account saved successfully', classes: 'green'});
-                
-                // Turn off edit mode
-                document.getElementById('edit-mode').checked = false;
-                toggleEditMode(false);
-                document.getElementById('save-btn').style.display = 'none';
-            }
-            
-            // Shared error handler
-            function handleError(error) {
-                console.error('Error saving Cloudinary data:', error);
-                document.getElementById('loading-overlay').classList.remove('active');
-                M.toast({html: 'Error saving Cloudinary account information', classes: 'red'});
-            }
-        }
-
-        // Add this to both pages to compare the exact request parameters
-        function logApiDetails() {
-            const url = window.location.pathname.split('/').pop();
-            console.log(`Debug - Page ${url} request details:`);
-            console.log(`Debug - Base URL: ${baseUrl}`);
-            console.log(`Debug - Headers: ${JSON.stringify(headers)}`);
-            console.log(`Debug - Query format: ${JSON.stringify(queryObject)}`);
+                .catch(error => {
+                    console.error('Debug - Error loading account from cloudinaryService:', error);
+                    document.getElementById('loading-overlay').classList.remove('active');
+                    M.toast({html: 'Error loading Cloudinary account data', classes: 'red'});
+                });
         }
     </script>
     <script>
@@ -525,6 +289,343 @@
             });
         }, 100);
     });
+</script>
+
+<!-- Include this in your cloudinary.html page -->
+<script src="../js/services/authService.js"></script>
+<script src="../js/services/cloudinaryService.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Check authentication first
+    if (!authService.isAuthenticated()) {
+      window.location.href = '../login.html';
+      return;
+    }
+    
+    // Get current user
+    const currentUser = authService.getCurrentUser();
+    console.log('Debug - Current user:', currentUser);
+    
+    // Setup UI based on role
+    cloudinaryService.setupUI();
+    
+    // Fetch and display cloudinary account
+    try {
+      // Get account for the current user
+      const result = await cloudinaryService.getAccountByUsername(currentUser.username);
+      
+      if (result && result.items && result.items.length > 0) {
+        const account = result.items[0];
+        
+        // Populate form
+        document.getElementById('cloudinary-id').value = account.id || '';
+        document.getElementById('cloud-name').value = account.cloud_name || '';
+        document.getElementById('api-key').value = account.api_key || '';
+        document.getElementById('api-secret').value = account.api_secret || '';
+        document.getElementById('upload-preset').value = account.upload_preset || '';
+        
+        // Update Materialize labels
+        M.updateTextFields();
+        
+        console.log('Debug - Form populated with account data');
+      } else {
+        console.log('Debug - No account found for user');
+        
+        // Show confirmation dialog to create new account
+        const wantToCreate = confirm('No Cloudinary account found. Would you like to create a new one?');
+        
+        if (wantToCreate) {
+          // Enable edit mode
+          document.getElementById('edit-mode').checked = true;
+          toggleEditMode(true);
+          document.getElementById('save-btn').style.display = 'block';
+          
+          M.toast({html: 'Please enter your Cloudinary details and save', classes: 'blue'});
+        } else {
+          M.toast({html: 'No Cloudinary account created', classes: 'orange'});
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load cloudinary account:', error);
+      
+      // Show error but also offer to create a new account
+      const wantToCreate = confirm('Error loading Cloudinary account. Would you like to create a new one?');
+      
+      if (wantToCreate) {
+        // Enable edit mode
+        document.getElementById('edit-mode').checked = true;
+        toggleEditMode(true);
+        document.getElementById('save-btn').style.display = 'block';
+        
+        M.toast({html: 'Please enter your Cloudinary details and save', classes: 'blue'});
+      } else {
+        M.toast({html: 'Error loading Cloudinary account', classes: 'red'});
+      }
+    }
+    
+    // Save button handler - keep the same
+    document.getElementById('save-btn').addEventListener('click', async () => {
+      // Keep your existing save button handler code
+    });
+  });
+</script>
+
+<script>
+// Save button handler - add this implementation 
+document.getElementById('save-btn').addEventListener('click', async () => {
+  try {
+    // Show loading overlay
+    document.getElementById('loading-overlay').classList.add('active');
+    
+    const currentUser = authService.getCurrentUser();
+    const id = document.getElementById('cloudinary-id').value;
+    
+    // Collect form data
+    const accountData = {
+      username: currentUser.username,
+      userid: currentUser.userId || '123',
+      cloud_name: document.getElementById('cloud-name').value || 'default',
+      api_key: document.getElementById('api-key').value || 'sample_key',
+      api_secret: document.getElementById('api-secret').value || 'sample_secret',
+      upload_preset: document.getElementById('upload-preset').value || ''
+    };
+
+    // Log the exact data being sent
+    console.log('Sending account data:', {
+      ...accountData,
+      api_secret: '***REDACTED***'
+    });
+    
+    let result;
+    
+    if (id) {
+      // Update existing record
+      result = await cloudinaryService.updateAccount(id, accountData);
+      M.toast({html: 'Cloudinary account updated successfully', classes: 'green'});
+    } else {
+      // Create new record
+      result = await cloudinaryService.createAccount(accountData);
+      M.toast({html: 'Cloudinary account created successfully', classes: 'green'});
+    }
+    
+    console.log('Operation successful:', result);
+    
+    // Update the ID field with the new or existing ID
+    if (result && result.id) {
+      document.getElementById('cloudinary-id').value = result.id;
+    }
+    
+    // Turn off edit mode
+    document.getElementById('edit-mode').checked = false;
+    toggleEditMode(false);
+    document.getElementById('save-btn').style.display = 'none';
+    
+    // Hide loading overlay
+    document.getElementById('loading-overlay').classList.remove('active');
+    
+  } catch (error) {
+    console.error('Save operation failed:', error);
+    M.toast({html: `Error: ${error.message || 'Save operation failed'}`, classes: 'red'});
+    document.getElementById('loading-overlay').classList.remove('active');
+  }
+});
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Check authentication and other initialization code...
+    
+    // SINGLE event listener for save button
+    document.getElementById('save-btn').addEventListener('click', async () => {
+      try {
+        console.log('Save button clicked - executing single handler');
+        
+        // Show loading overlay
+        document.getElementById('loading-overlay').classList.add('active');
+        
+        const currentUser = authService.getCurrentUser();
+        const id = document.getElementById('cloudinary-id').value;
+        
+        // Collect form data
+        const accountData = {
+          username: currentUser.username,
+          userid: currentUser.userId,
+          cloud_name: document.getElementById('cloud-name').value,
+          api_key: document.getElementById('api-key').value,
+          api_secret: document.getElementById('api-secret').value,
+          upload_preset: document.getElementById('upload-preset').value || ''
+        };
+        
+        console.log('Submitting data for:', accountData.username);
+        
+        let result;
+        
+        if (id) {
+          // Update existing record
+          result = await cloudinaryService.updateAccount(id, accountData);
+          M.toast({html: 'Cloudinary account updated successfully', classes: 'green'});
+        } else {
+          // Create new record
+          result = await cloudinaryService.createAccount(accountData);
+          M.toast({html: 'Cloudinary account created successfully', classes: 'green'});
+        }
+        
+        console.log('Operation successful:', result);
+        
+        // Update the ID field with the new or existing ID
+        if (result && result.id) {
+          document.getElementById('cloudinary-id').value = result.id;
+        }
+        
+        // Turn off edit mode
+        document.getElementById('edit-mode').checked = false;
+        toggleEditMode(false);
+        document.getElementById('save-btn').style.display = 'none';
+        
+      } catch (error) {
+        console.error('Save operation failed:', error);
+        M.toast({html: `Error: ${error.message || 'Save operation failed'}`, classes: 'red'});
+      } finally {
+        // Always hide loading overlay
+        document.getElementById('loading-overlay').classList.remove('active');
+      }
+    });
+    
+    // Rest of your initialization code...
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Check authentication first
+    if (!authService.isAuthenticated()) {
+      window.location.href = '../login.html';
+      return;
+    }
+    
+    // Get current user
+    const currentUser = authService.getCurrentUser();
+    console.log('Debug - Current user:', currentUser);
+    
+    // Setup UI based on role
+    cloudinaryService.setupUI();
+    
+    // Load account data
+    try {
+      const result = await cloudinaryService.getAccountByUsername(currentUser.username);
+      
+      if (result && result.items && result.items.length > 0) {
+        const account = result.items[0];
+        
+        // Populate form
+        document.getElementById('cloudinary-id').value = account.id || '';
+        document.getElementById('cloud-name').value = account.cloud_name || '';
+        document.getElementById('api-key').value = account.api_key || '';
+        document.getElementById('api-secret').value = account.api_secret || '';
+        document.getElementById('upload-preset').value = account.upload_preset || '';
+        
+        // Update Materialize labels
+        M.updateTextFields();
+      } else {
+        console.log('Debug - No account found for user');
+        
+        // Show confirmation dialog to create new account
+        const wantToCreate = confirm('No Cloudinary account found. Would you like to create a new one?');
+        
+        if (wantToCreate) {
+          // Enable edit mode
+          document.getElementById('edit-mode').checked = true;
+          toggleEditMode(true);
+          document.getElementById('save-btn').style.display = 'block';
+          
+          M.toast({html: 'Please enter your Cloudinary details and save', classes: 'blue'});
+        } else {
+          M.toast({html: 'No Cloudinary account created', classes: 'orange'});
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load cloudinary account:', error);
+      
+      // Show create new dialog on error
+      const wantToCreate = confirm('Error loading Cloudinary account. Would you like to create a new one?');
+      
+      if (wantToCreate) {
+        // Enable edit mode
+        document.getElementById('edit-mode').checked = true;
+        toggleEditMode(true);
+        document.getElementById('save-btn').style.display = 'block';
+        
+        M.toast({html: 'Please enter your Cloudinary details and save', classes: 'blue'});
+      } else {
+        M.toast({html: 'Error loading Cloudinary account', classes: 'red'});
+      }
+    }
+    
+    // SINGLE save button handler - remove any others
+    const saveBtn = document.getElementById('save-btn');
+    
+    // Remove any existing listeners (important!)
+    const oldSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(oldSaveBtn, saveBtn);
+    
+    // Add the ONLY event listener
+    oldSaveBtn.addEventListener('click', async () => {
+      try {
+        console.log('Save button clicked - single handler executing');
+        
+        // Show loading overlay
+        document.getElementById('loading-overlay').classList.add('active');
+        
+        const currentUser = authService.getCurrentUser();
+        const id = document.getElementById('cloudinary-id').value;
+        
+        // Collect form data
+        const accountData = {
+          username: currentUser.username,
+          userid: currentUser.userId,
+          cloud_name: document.getElementById('cloud-name').value,
+          api_key: document.getElementById('api-key').value,
+          api_secret: document.getElementById('api-secret').value,
+          upload_preset: document.getElementById('upload-preset').value || ''
+        };
+        
+        let result;
+        
+        if (id) {
+          console.log('Updating existing account with ID:', id);
+          result = await cloudinaryService.updateAccount(id, accountData);
+          M.toast({html: 'Cloudinary account updated successfully', classes: 'green'});
+        } else {
+          console.log('Creating new account');
+          result = await cloudinaryService.createAccount(accountData);
+          M.toast({html: 'Cloudinary account created successfully', classes: 'green'});
+        }
+        
+        console.log('Operation successful');
+        
+        // Update the ID field with the new ID
+        if (result && result.id) {
+          document.getElementById('cloudinary-id').value = result.id;
+        }
+        
+        // Turn off edit mode
+        document.getElementById('edit-mode').checked = false;
+        toggleEditMode(false);
+        oldSaveBtn.style.display = 'none';
+        
+      } catch (error) {
+        console.error('Save operation failed:', error);
+        M.toast({html: `Error: ${error.message || 'Save operation failed'}`, classes: 'red'});
+      } finally {
+        // Always hide loading overlay
+        document.getElementById('loading-overlay').classList.remove('active');
+      }
+    });
+    
+    // Remove other unnecessary function
+    window.saveCloudinaryAccount = undefined;
+  });
 </script>
 
 <app-header></app-header>
